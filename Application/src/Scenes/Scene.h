@@ -10,7 +10,7 @@
 
 #include <string>
 #include <stdint.h>
-#include "GameController.h"
+#include "../Input/GameController.h"
 
 class Screen;
 

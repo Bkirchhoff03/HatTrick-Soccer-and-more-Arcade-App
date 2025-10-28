@@ -8,13 +8,13 @@
 #ifndef APP_APP_H_
 #define APP_APP_H_
 
-#include "Screen.h"
+#include "../Graphics/Screen.h"
 #include <vector>
 #include <stdint.h>
 #include <memory>
-#include "Scene.h"
-#include "InputController.h"
-#include "BitmapFont.h"
+#include "../Scenes/Scene.h"
+#include "../Input/InputController.h"
+#include "../Graphics/BitmapFont.h"
 struct SDL_Window;
 
 class App{

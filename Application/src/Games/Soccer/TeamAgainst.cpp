@@ -152,7 +152,7 @@ bool TeamAgainst::willCollide(const Defender &defender, const DefenderAI &defend
 	BoundaryEdge edge;
 	for (const Excluder &wall : mPlayerBoundaries) {
 		if (wall.hasCollided(bbox, edge)) {
-			std::cout << "defender colliding" << std::endl;
+			//std::cout << "defender colliding" << std::endl;
 			return true;
 		}
 	}

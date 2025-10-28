@@ -102,6 +102,40 @@ void SoccerGame::init(GameController& controller) {
 		};
 	controller.addInputActionForKey(backAction);
 
+	ButtonAction kickAction;
+	kickAction.key = GameController::enterKey();
+	kickAction.action = [this](uint32_t dt, InputState state) {
+		if (mGameState == IN_GAME && GameController::isPressed(state)) {
+			mPlayer.kick(mSoccerBall);
+		}
+	};
+	controller.addInputActionForKey(kickAction);
+
+	ButtonAction sprintAction;
+	sprintAction.key = GameController::shiftKey();  // Or use Shift if available
+	sprintAction.action = [this](uint32_t dt, InputState state) {
+		if (mGameState == IN_GAME) {
+			if (GameController::isPressed(state)) {
+				// Player is sprinting
+				if (mPlayer.isWithBall()) {
+					mPlayer.setPlayerState(PLAYER_SPRINTING_WITH_BALL);
+				} else {
+					mPlayer.setPlayerState(PLAYER_SPRINTING);
+				}
+			} else if (GameController::isReleased(state)) {
+				// Released sprint - go back to running
+				if (mPlayer.getMovementDirection() != PLAYER_MOVEMENT_NONE) {
+					if (mPlayer.isWithBall()) {
+						mPlayer.setPlayerState(PLAYER_RUNNING_WITH_BALL);
+					} else {
+						mPlayer.setPlayerState(PLAYER_RUNNING);
+					}
+				}
+			}
+		}
+	};
+	controller.addInputActionForKey(sprintAction);
+
 	ButtonAction startAction;
 	startAction.key = GameController::actionKey();
 	startAction.action = [this](uint32_t dt, InputState state) {
@@ -149,35 +183,22 @@ void SoccerGame::update(uint32_t dt) {
 			Defender& defender = mDefenders[i];
 			DefenderAI& defenderAI = mDefenderAI[i];
 
-			//if (mReleaseGhostTimer >= RELEASE_GHOST_TIME && ghostAI.isInPen() && !ghost.isRealeased()) {
-			//mReleaseGhostTimer = 0;
-			//ghost.releasedFromPen();
-			//}
-
 			auto direction = defenderAI.update(dt, mPlayer, TeamAgainst::singleton(), mDefenders, mSoccerBall);
-
-			//if (direction != defender.getMovementDirection()) {
 			defender.setMovementDirection(direction);
-			//defender.lockCanChangeDirection();
-			//}
-
 			defender.update(dt);
 			if (mPlayer.getBoundingBox().intersects(mSoccerBall.getBoundingBox())) {
-				/*if (TeamAgainst::singleton().willCollide(mSoccerBall, mPlayer.getMovementDirection())) {
-					mAnnouncement = OUT_OF_BOUNDS_STR;
-					resetGame();
-					return;
-				} else {*/
 				mSoccerBall.bounceOffOfSoccerPlayer(mPlayer);
-				//}
+				mPlayer.setBallPossession(true);
 			}
 			if (defender.getBoundingBox().intersects(mSoccerBall.getBoundingBox())) {
 				if (i == GOALKEEPER) {
 					mAnnouncement = GK_SAVE_STR;
+					mPlayer.setBallPossession(false);
 					resetGame();
 					return;
 				}
 				mSoccerBall.bounceOffOfSoccerPlayer(defender);
+				mPlayer.setBallPossession(false);
 			}
 			if (mPlayer.getBoundingBox().intersects(defender.zoneBoundingBox())) {
 				defender.setStateToDefending();
@@ -194,40 +215,6 @@ void SoccerGame::update(uint32_t dt) {
 			else if (!defender.getBoundingBox().intersects(defender.zoneBoundingBox())) {
 				defender.setStateToReturnZone();
 			}
-			//if (defender.isWithBall() && mPlayer.getDribbleBoundingBox().intersects(defender.getBoundingBox())) {
-			//	//auto random = srand(100);
-			//	//if (random < defender.getTackleOdds()) {
-			//	defender.ballLost();
-			//	//}
-			//}
-			//else if (defender.isWithoutBall() && mPlayer.isWithBall()
-			//	&& defender.getDribbleBoundingBox().intersects(mPlayer.getBoundingBox())) {
-			//	srand(100);
-			//	auto random = rand();
-
-			//	if (random < defender.getTackleOdds()) {
-			//		mPlayer.ballTakenByDefender();
-			//	}
-			//	else if (random < defender.getFoulOdds()) {
-			//		callFoul(defender);
-			//	}
-			//	mPressedDirection = PLAYER_MOVEMENT_NONE;
-			//	mPlayer.setMovementDirection(PLAYER_MOVEMENT_NONE);
-			//	return;
-			//}
-			//ADD BALL IN GOAL MECHANICS NOT PLAYER MECHANICS
-			/*if (defender.isWithBall() && mPlayer.getDribbleBoundingBox().intersects(defender.getBoundingBox())) {
-			 defender.scoredOnByPlayer();
-			 mPlayer.addToScore(1);
-			 } else if (defender.isWithoutBall()
-			 && defender.getDribbleBoundingBox().intersects(mPlayer.getBoundingBox())) {
-			 mNumGoalsFor--;
-			 mGameState = SCORED_ON;
-			 mPlayer.ballTakenByDefender();
-			 mPressedDirection = PLAYER_MOVEMENT_NONE;
-			 mPlayer.setMovementDirection(PLAYER_MOVEMENT_NONE);
-			 return;
-			 }*/
 		}
 		int nowScore = mPlayer.score();
 		TeamAgainst::singleton().update(dt, mPlayer, mDefenders, mDefenderAI, mSoccerBall);
@@ -237,25 +224,24 @@ void SoccerGame::update(uint32_t dt) {
 			//std::cout << "scored, reseting game" << std::endl;
 			mAnnouncement = Goal_STR;
 			resetGame();
+			return;
 		}
-		if (mSoccerBall.getBoundingBox().getCenterPoint().GetX() > TeamAgainst::singleton().getBounds().GetX()
-			|| mSoccerBall.getBoundingBox().getCenterPoint().GetX() < 0
-			|| mSoccerBall.getBoundingBox().getCenterPoint().GetY() > TeamAgainst::singleton().getBounds().GetY()
-			|| mSoccerBall.getBoundingBox().getCenterPoint().GetY() < 0) {
+		if (mSoccerBall.getBoundingBox().getCenterPoint().GetX() >= TeamAgainst::singleton().getBounds().GetX()
+				|| mSoccerBall.getBoundingBox().getCenterPoint().GetX() <= 0
+				|| mSoccerBall.getBoundingBox().getCenterPoint().GetY() >= TeamAgainst::singleton().getBounds().GetY()
+				|| mSoccerBall.getBoundingBox().getCenterPoint().GetY() <= 0) {
 			//std::cout << "out of bounds, reseting game" << std::endl;
 			mAnnouncement = OUT_OF_BOUNDS_STR;
 			resetGame();
+			return;
 		}
-	} /*else if (mGameState == SCORED_ON) {
-		mPlayer.update(dt);
-		if (mPlayer.isFinishedAnimation()) {
-			if (mTimer >= 0) {
-				resetGameAfterScore();
-			} else {
-				//mGameState = GAME_OVER;
-			}
+		if (mPlayer.score() == 3) {
+			mGameState = GAME_OVER;
+			mAnnouncement = GAME_END_WIN_STR;
+			resetGame();
+			return;
 		}
-	 }*/
+	}
 }
 
 void SoccerGame::draw(Screen& screen) {
@@ -267,7 +253,7 @@ void SoccerGame::draw(Screen& screen) {
 		defender.draw(screen);
 	}
 	/*for (DefenderAI defenderAi : mDefenderAI) {
-	 defenderAi.draw(screen);
+		defenderAi.draw(screen);
 	 }*/
 	const auto& font = App::singleton().getFont();
 
@@ -382,7 +368,7 @@ void SoccerGame::setupDefenders() {
 	/*AARectangle gkZone = AARectangle(Vec2D(gkSpawn.GetX() - 30 + bounds.width, gkSpawn.GetY() - 22 + bounds.height), 96,
 	 50);*/
 	Gk.init(mPlayerSpriteSheet, App::singleton().getBasePath() + "Assets/Soccer_animations.txt", gkSpawn,
-		DEFENDER_MOVEMENT_SPEED, true, Color::orange());
+			DEFENDER_MOVEMENT_SPEED, true, Color::red());
 	Gk.setMovementDirection(PLAYER_MOVEMENT_LEFT);
 	mDefenders[GOALKEEPER] = Gk;
 	auto GkAI = DefenderAI();
@@ -397,7 +383,7 @@ void SoccerGame::setupDefenders() {
 	/*AARectangle lbZone = AARectangle(Vec2D(gkZone.getBottomRightPoint().GetX(), gkZone.getTopLeftPoint().GetY()), 30,
 	 160);*/
 	lb.init(mPlayerSpriteSheet, App::singleton().getBasePath() + "Assets/Soccer_animations.txt", lbSpawn,
-		DEFENDER_MOVEMENT_SPEED, true, Color::orange());
+			DEFENDER_MOVEMENT_SPEED, true, Color::blue());
 	lb.setMovementDirection(PLAYER_MOVEMENT_LEFT);
 	mDefenders[LEFT_BACK] = lb;
 	auto lbAI = DefenderAI();
@@ -412,7 +398,7 @@ void SoccerGame::setupDefenders() {
 	/*AARectangle cbZone = AARectangle(Vec2D(gkZone.getTopLeftPoint().GetX(), gkZone.getBottomRightPoint().GetY()), 94,
 	 113);*/
 	cb.init(mPlayerSpriteSheet, App::singleton().getBasePath() + "Assets/Soccer_animations.txt", cbSpawn,
-		DEFENDER_MOVEMENT_SPEED, true, Color::orange());
+			DEFENDER_MOVEMENT_SPEED, true, Color::green());
 	cb.setMovementDirection(PLAYER_MOVEMENT_LEFT);
 	mDefenders[CENTER_BACK] = cb;
 	auto cbAI = DefenderAI();
@@ -426,7 +412,7 @@ void SoccerGame::setupDefenders() {
 	//AARectangle rbZone = AARectangle(Vec2D(rbSpawn.GetX(), gkZone.getTopLeftPoint().GetY()), 30, 160);
 	Defender rb;
 	rb.init(mPlayerSpriteSheet, App::singleton().getBasePath() + "Assets/Soccer_animations.txt", rbSpawn,
-		DEFENDER_MOVEMENT_SPEED, true, Color::orange());
+			DEFENDER_MOVEMENT_SPEED, true, Color::pink());
 	rb.setMovementDirection(PLAYER_MOVEMENT_LEFT);
 	mDefenders[RIGHT_BACK] = rb;
 	auto rbAI = DefenderAI();
@@ -441,7 +427,7 @@ void SoccerGame::setupDefenders() {
 	/*AARectangle cdmZone = AARectangle(Vec2D(rbZone.getTopLeftPoint().GetX(), rbZone.getBottomRightPoint().GetY()), 160,
 	 60);*/
 	cdm.init(mPlayerSpriteSheet, App::singleton().getBasePath() + "Assets/Soccer_animations.txt", cdmSpawn,
-		DEFENDER_MOVEMENT_SPEED, true, Color::orange());
+			DEFENDER_MOVEMENT_SPEED, true, Color::yellow());
 	cdm.setMovementDirection(PLAYER_MOVEMENT_LEFT);
 	mDefenders[CENTER_DEFENSIVE_MIDFIELDER] = cdm;
 	auto cdmAI = DefenderAI();

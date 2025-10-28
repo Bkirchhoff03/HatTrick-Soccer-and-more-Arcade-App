@@ -18,6 +18,7 @@ DefenderAI::DefenderAI() {
 }
 void DefenderAI::init(Defender &defender, uint32_t lookAheadDistance, const Vec2D &scatterTarget,
 		const Vec2D &defenderPositionTarget, const Vec2D &defenderAttackingPosition, DefenderName name) {
+	mDifficultyMultiplier = 1.0f;
 	mDefenderZoneTarget = defenderPositionTarget;
 	mDefenderExitZonePosition = defenderAttackingPosition;
 	mTarget = scatterTarget;
@@ -44,6 +45,9 @@ PlayerMovement DefenderAI::update(uint32_t dt, const Player &player, const TeamA
 		if (mState == DEFENDER_AI_STATE_DOUBLE_TEAM) {
 			if (player.isWithoutBall()) {
 				setState(DEFENDER_AI_STATE_GO_TO_ZONE);
+			} else {
+				Vec2D chaseTarget = getChaseTarget(dt, player, teamAgainst, defenders, soccerBall);
+				changeTarget(chaseTarget);
 			}
 		}
 		if (mState == DEFENDER_AI_STATE_GO_TO_ZONE
@@ -51,14 +55,6 @@ PlayerMovement DefenderAI::update(uint32_t dt, const Player &player, const TeamA
 			setState(DEFENDER_AI_STATE_IN_ZONE_STOPPED);
 			mnoptrDefender->setDefenderState(PLAYER_STOPPED);
 		}
-		/*
-
-		 if (mState == DEFENDER_AI_STATE_GO_TO_ZONE && mnoptrDefender->getBoundingBox().getCenterPoint() == mDefenderZoneTarget) {
-		 setState(DEFENDER_AI_STATE_IN_ZONE_STOPPED);
-		 mnoptrDefender->setDefenderState(PLAYER_STOPPED);
-		 //return PLAYER_MOVEMENT_NONE;
-		 }
-		 */
 
 		if (mState == DEFENDER_AI_STATE_EXIT_ZONE && !mnoptrDefender->getBoundingBox().intersects(zone)) {
 			setState(DEFENDER_AI_STATE_DOUBLE_TEAM);
@@ -68,8 +64,16 @@ PlayerMovement DefenderAI::update(uint32_t dt, const Player &player, const TeamA
 		if (mState == DEFENDER_AI_STATE_DEFENDING) {
 			setState(DEFENDER_AI_STATE_DEFENDING);
 			mnoptrDefender->setDefenderState(PLAYER_SPRINTING);
-			//changeTarget(getChaseTarget(dt, player, teamAgainst, defenders));
-			changeTarget(player.getBoundingBox().getCenterPoint());
+			Vec2D chaseTarget = getChaseTarget(dt, player, teamAgainst, defenders, soccerBall);
+			changeTarget(chaseTarget);
+			//changeTarget(player.getBoundingBox().getCenterPoint());
+		}
+
+		if (mnoptrDefender->getBoundingBox().containsPoint(soccerBall.getBoundingBox().getCenterPoint())) {
+			if (mName == GOALKEEPER) {
+				setState(DEFENDER_AI_STATE_DEFENDING);
+				changeTarget(soccerBall.getBoundingBox().getCenterPoint());
+			}
 		}
 
 		PlayerMovement currentDirection = mnoptrDefender->getMovementDirection();
@@ -106,24 +110,6 @@ PlayerMovement DefenderAI::update(uint32_t dt, const Player &player, const TeamA
 				[](const PlayerMovement &direction1, const PlayerMovement &direction2) {
 					return direction1 < direction2;
 				});
-
-		if (mnoptrDefender->isWithBall()
-				&& (mState == DEFENDER_AI_STATE_IN_ATTACKING || mState == DEFENDER_AI_STATE_PASSING)) {
-			std::uniform_int_distribution<size_t> distribution(0, possibleDirections.size() - 1);
-			return possibleDirections[static_cast<int>(distribution(mAIRandomGenerator))];
-		}
-
-		if (mState == DEFENDER_AI_STATE_PASSING) {
-			changeTarget(getChaseTarget(dt, player, teamAgainst, defenders, soccerBall));
-		}
-
-		/*if (mState == DEFENDER_AI_STATE_DEFENDING) {
-		 changeTarget(getChaseTarget(dt, player, teamAgainst, defenders));
-		 }
-		 if (mState == DEFENDER_AI_STATE_GO_TO_ZONE) {
-		 changeTarget(mDefenderZoneTarget);
-		 }*/
-
 		PlayerMovement directionToGoIn = PLAYER_MOVEMENT_NONE;
 
 		uint32_t lowestDistance = UINT32_MAX;
@@ -168,7 +154,7 @@ void DefenderAI::draw(Screen &screen) {
 		 * mnoptrDefender->getBoundingBox().getWidth());*/
 
 		Color c = Color(mnoptrDefender->getSpriteColor().getRed(), mnoptrDefender->getSpriteColor().getGreen(),
-				mnoptrDefender->getSpriteColor().getBlue(), 200);
+				mnoptrDefender->getSpriteColor().getBlue(), 100);
 		screen.draw(bbox, mnoptrDefender->getSpriteColor(), true, c);
 	}
 }
@@ -242,45 +228,160 @@ void DefenderAI::changeTarget(const Vec2D &target) {
 	mTarget = target;
 }
 
+Vec2D DefenderAI::clampTargetToBounds(const Vec2D &target, const TeamAgainst &teamAgainst) {
+	Vec2D bounds = teamAgainst.getBounds();
+	Vec2D clampedTarget = target;
+
+	// Add margin so defenders don't get stuck at exact edges
+	float margin = 5.0f;
+
+	clampedTarget.SetX(std::max(margin, std::min(clampedTarget.GetX(), bounds.GetX() - margin)));
+	clampedTarget.SetY(std::max(margin, std::min(clampedTarget.GetY(), bounds.GetY() - margin)));
+
+	return clampedTarget;
+}
+
 Vec2D DefenderAI::getChaseTarget(uint32_t dt, const Player &player, const TeamAgainst &teamAgainst,
 		const std::vector<Defender> &defenders, SoccerBall &soccerBall) {
+	//Vec2D prediction = playerPos + (getMovementVector(player.getMovementDirection()));
 	Vec2D target;
+	Vec2D playerPos = player.getBoundingBox().getCenterPoint();
+	Vec2D ballPos = soccerBall.getBoundingBox().getCenterPoint();
+	Vec2D myPos = mnoptrDefender->getBoundingBox().getCenterPoint();
 	switch (mName) {
 	case GOALKEEPER: {
-		target = soccerBall.getBoundingBox().getCenterPoint();
+		// Goalkeeper defends the goal
+		Vec2D goalPos = mDefenderZoneTarget;
+
+		// If ball is close to goal, intercept it
+		float ballDistanceToGoal = goalPos.distance(ballPos);
+		if (ballDistanceToGoal < 50.0f) {
+			// Ball is dangerous - go for it
+			target = ballPos;
+		} else {
+			// Position between ball and goal center
+			Vec2D ballToGoal = (goalPos - ballPos).getUnitVec();
+			target = goalPos - (ballToGoal * 15.0f);  // 15 units in front of goal
+
+			// Clamp to stay within the goal area
+			float maxDistanceFromGoal = 30.0f;
+			if (target.distance(goalPos) > maxDistanceFromGoal) {
+				target = goalPos + ((target - goalPos).getUnitVec() * maxDistanceFromGoal);
+			}
+		}
+		//target = soccerBall.getBoundingBox().getCenterPoint();
 		//target = player.getBoundingBox().getCenterPoint();
 	}
 		break;
 	case CENTER_BACK: {
-		target = player.getBoundingBox().getCenterPoint()
-				+ 2 * getMovementVector(player.getMovementDirection()) * player.getBoundingBox().getWidth();
+		// Center back predicts where player will be
+		// Lead the player by 2 tile widths in their movement direction
+		Vec2D prediction = playerPos
+				+ (getMovementVector(player.getMovementDirection()) * player.getBoundingBox().getWidth() * 2.0f);
+		target = prediction;
+		//target = player.getBoundingBox().getCenterPoint()
+		//		+ 2 * getMovementVector(player.getMovementDirection()) * player.getBoundingBox().getWidth();
 	}
 		break;
 	case LEFT_BACK: {
-		Vec2D pacmanOffsetPoint = player.getBoundingBox().getCenterPoint()
-				+ (getMovementVector(player.getMovementDirection()) * player.getBoundingBox().getWidth());
-		target = (pacmanOffsetPoint - defenders[CENTER_DEFENSIVE_MIDFIELDER].getBoundingBox().getCenterPoint()) * 2
-				+ defenders[CENTER_DEFENSIVE_MIDFIELDER].getBoundingBox().getCenterPoint();
+		// Left back uses pincer movement with CDM, but only when CDM is nearby
+		Vec2D cdmPos = defenders[CENTER_DEFENSIVE_MIDFIELDER].getBoundingBox().getCenterPoint();
+		float distanceToPlayer = myPos.distance(playerPos);
+		float cdmToPlayerDist = cdmPos.distance(playerPos);
+
+		// Only use pincer logic if CDM is close to both LB and player
+		float maxPincerDistance = 50.0f;  // CDM must be within this range
+
+		if (distanceToPlayer < maxPincerDistance && cdmToPlayerDist < maxPincerDistance) {
+			Vec2D leftCutoff = playerPos + Vec2D(-20.0f, 0.0f);
+			target = leftCutoff;
+			// CDM is nearby and helping - use pincer movement
+			/*Vec2D playerMovement = getMovementVector(player.getMovementDirection())
+					* player.getBoundingBox().getWidth();
+			Vec2D playerOffsetPoint = playerPos + playerMovement;
+
+			// Mirror player position across the CDM to create pincer
+			Vec2D mirroredTarget = (playerOffsetPoint - cdmPos) * 2.0f + cdmPos;
+
+			// IMPORTANT: Clamp target to stay on screen
+			Vec2D bounds = teamAgainst.getBounds();
+			mirroredTarget.SetX(std::max(0.0f, std::min(mirroredTarget.GetX(), bounds.GetX())));
+			mirroredTarget.SetY(std::max(0.0f, std::min(mirroredTarget.GetY(), bounds.GetY())));
+
+			 target = mirroredTarget;*/
+		} else if (distanceToPlayer < 80.0f) {
+			// CDM is too far away or back in zone - chase player directly
+			// Predict player's movement slightly
+			Vec2D prediction = playerPos
+					+ (getMovementVector(player.getMovementDirection()) * player.getBoundingBox().getWidth() * 1.0f);
+			target = prediction;
+		} else {
+			target = playerPos;
+		}
+		Vec2D bounds = teamAgainst.getBounds();
+		target.SetX(std::max(5.0f, std::min(target.GetX(), bounds.GetX() - 5.0f)));
+		target.SetY(std::max(5.0f, std::min(target.GetY(), bounds.GetY() - 5.0f)));
+		//MAKES LB GO WAY OFF SCREEN SOMETIMES
+		/*
+		// Left back uses pincer movement with CDM
+		// Tries to trap player between LB and CDM
+		Vec2D playerMovement = getMovementVector(player.getMovementDirection()) * player.getBoundingBox().getWidth();
+		Vec2D playerOffsetPoint = playerPos + playerMovement;
+
+		// Mirror player position across the CDM to create pincer
+		Vec2D cdmPos = defenders[CENTER_DEFENSIVE_MIDFIELDER].getBoundingBox().getCenterPoint();
+		target = (playerOffsetPoint - cdmPos) * 2.0f + cdmPos;
+		 */
+		//ORIGINAL
+		//Vec2D pacmanOffsetPoint = player.getBoundingBox().getCenterPoint()
+		//		+ (getMovementVector(player.getMovementDirection()) * player.getBoundingBox().getWidth());
+		//target = (pacmanOffsetPoint - defenders[CENTER_DEFENSIVE_MIDFIELDER].getBoundingBox().getCenterPoint()) * 2
+		//		+ defenders[CENTER_DEFENSIVE_MIDFIELDER].getBoundingBox().getCenterPoint();
 	}
 		break;
 	case RIGHT_BACK: {
-		auto distanceToPacmanBox = mnoptrDefender->getBoundingBox().getCenterPoint().distance(
+		// Right back is aggressive when close, strategic when far
+		float distanceToPlayer = myPos.distance(playerPos);
+		float aggressiveRange = player.getBoundingBox().getWidth() * 4.0f;
+
+		if (distanceToPlayer > aggressiveRange) {
+			// Too far - chase directly
+			target = playerPos;
+		} else {
+			// Close enough - cut off escape route
+			// Try to force player toward the sideline or other defenders
+			Vec2D toSideline = Vec2D(teamAgainst.getBounds().GetX(), playerPos.GetY());
+			Vec2D cutoffPoint = playerPos + ((toSideline - playerPos) * 0.3f);
+			target = cutoffPoint;
+		}
+		/*auto distanceToPacmanBox = mnoptrDefender->getBoundingBox().getCenterPoint().distance(
 				player.getBoundingBox().getCenterPoint());
 		if (distanceToPacmanBox > player.getBoundingBox().getWidth() * 4) {
 			target = player.getBoundingBox().getCenterPoint();
 		} else {
 			target = mAttackTarget;
-		}
+		 }*/
 	}
 		break;
 	case CENTER_DEFENSIVE_MIDFIELDER: {
-		target = player.getBoundingBox().getCenterPoint();
+		// CDM is the "sweeper" - always goes for the ball carrier
+		// Most direct and aggressive
+
+		// If player has the ball, chase them
+		if (player.isWithBall()) {
+			target = playerPos;
+		} else {
+			// Player doesn't have ball - go for the ball itself
+			target = ballPos;
+		}
+		//target = player.getBoundingBox().getCenterPoint();
 	}
 		break;
 	default: {
 	}
 		break;
 	}
+	target = clampTargetToBounds(target, teamAgainst);
 	return target;
 }
 

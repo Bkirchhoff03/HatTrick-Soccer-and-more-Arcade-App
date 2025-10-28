@@ -67,7 +67,8 @@ private:
 	void changeTarget(const Vec2D &target);
 	Vec2D getChaseTarget(uint32_t dt, const Player &player, const TeamAgainst &teamAgainst,
 			const std::vector<Defender> &defender, SoccerBall &soccerBall);
-
+	Vec2D clampTargetToBounds(const Vec2D &target, const TeamAgainst &teamAgainst);
+	float mDifficultyMultiplier;
 	Vec2D mDefenderExitZonePosition;
 	Vec2D mDefenderZoneTarget;
 	Vec2D mAttackTarget;

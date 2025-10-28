@@ -54,36 +54,12 @@ player_moving_down_3
 
 :frame_keys 4
 
-player_moving_up_left_1
-player_moving_up_left_2
-player_moving_up_left_1
-player_moving_up_left_3
-
-:animation move_up_right
-:sprite_sheet SoccerSprites
-:size 12 12
-:fps 15
-
-:frame_keys 4
-
-player_moving_up_right_1
-player_moving_up_right_2
-player_moving_up_right_1
-player_moving_up_right_3
-
-:animation move_down_right
-:sprite_sheet SoccerSprites
-:size 12 12
-:fps 15
-
-:frame_keys 4
-
 player_moving_down_right_1
 player_moving_down_right_2
 player_moving_down_right_1
 player_moving_down_right_3
 
-:animation move_down_left
+:animation move_up_right
 :sprite_sheet SoccerSprites
 :size 12 12
 :fps 15
@@ -94,6 +70,30 @@ player_moving_down_left_1
 player_moving_down_left_2
 player_moving_down_left_1
 player_moving_down_left_3
+
+:animation move_down_right
+:sprite_sheet SoccerSprites
+:size 12 12
+:fps 15
+
+:frame_keys 4
+
+player_moving_up_left_1
+player_moving_up_left_2
+player_moving_up_left_1
+player_moving_up_left_3
+
+:animation move_down_left
+:sprite_sheet SoccerSprites
+:size 12 12
+:fps 15
+
+:frame_keys 4
+
+player_moving_up_right_1
+player_moving_up_right_2
+player_moving_up_right_1
+player_moving_up_right_3
 
 
 :animation ball

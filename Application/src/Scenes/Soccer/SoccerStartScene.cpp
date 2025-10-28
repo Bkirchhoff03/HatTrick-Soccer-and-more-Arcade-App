@@ -12,6 +12,7 @@
 #include "SoccerGame.h"
 #include <vector>
 #include <memory>
+#include <stdlib.h>
 
 SoccerStartScene::SoccerStartScene() :
 		ButtonOptionsScene( { "Play Game", "High Scores" }, Color::green()) {
@@ -30,8 +31,8 @@ void SoccerStartScene::init() {
 
 	std::vector<Button::ButtonAction> actions;
 	actions.push_back([this]() {
-		auto SoccerGame = std::make_unique<SoccerGame>();
-		App::singleton().pushScene(std::make_unique<GameScene>(std::move(SoccerGame)));
+		auto soccerGame = std::make_unique<SoccerGame>();
+		App::singleton().pushScene(std::make_unique<GameScene>(std::move(soccerGame)));
 	});
 
 	actions.push_back([this]() {

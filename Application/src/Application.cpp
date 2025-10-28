@@ -7,7 +7,7 @@
 //============================================================================
 
 #include <iostream>
-#include "App.h"
+#include "App/App.h"
 const int SCREEN_WIDTH = 224;
 const int SCREEN_HEIGHT = 288;
 const int MAGNIFICATION = 2;

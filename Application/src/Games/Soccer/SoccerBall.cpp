@@ -36,7 +36,16 @@ SoccerBall::SoccerBall(const Vec2D& pos, float radius) :
 
 void SoccerBall::update(uint32_t dt) {
 	if (mState == SOCCER_BALL_STATE_IN_PLAY_MOVING) {
-		mVelocity -= mVelocity.getUnitVec();
+		//mVelocity -= mVelocity.getUnitVec();  // Reduces by 1 unit/frame
+		//This should be time-based:
+		float friction = 0.95f;  // Adjust to taste
+		mVelocity *= pow(friction, millisecondsToSeconds(dt) * 60.0f);
+		if (mVelocity.mag() < 0.5f) {
+			mVelocity = Vec2D::zero;
+			mState = SOCCER_BALL_STATE_IN_PLAY_AT_REST;
+		}
+
+		//mVelocity -= mVelocity.getUnitVec();
 	}
 	else {
 		mVelocity = Vec2D::zero;
@@ -60,15 +69,39 @@ void SoccerBall::resetToFirstPosition() {
 }
 
 void SoccerBall::bounceOffOfSoccerPlayer(SoccerPlayer soccerPlayer) {
-	if (mState == SOCCER_BALL_STATE_IN_PLAY_AT_REST) {
-		mState = SOCCER_BALL_STATE_IN_PLAY_MOVING;
-	}
+	mState = SOCCER_BALL_STATE_IN_PLAY_MOVING;
+
 	float playerSpeed = static_cast<float>(soccerPlayer.getMovementSpeed());
 	Vec2D playerVelocity = getMovementVector(soccerPlayer.getMovementDirection());
+	// Calculate direction from player to ball
+	Vec2D playerPos = soccerPlayer.getBoundingBox().getCenterPoint();
+	Vec2D ballPos = mBBox.getCenterPoint();
+	Vec2D playerToBall = (ballPos - playerPos).getUnitVec();
+
+	// If player is moving, kick in that direction
+	// Otherwise, kick away from player
+	Vec2D kickDirection;
+	if (playerVelocity.mag() > 0.1f) {
+		kickDirection = playerVelocity.getUnitVec();
+	} else {
+		kickDirection = playerToBall;
+	}
+
+	// Add some of the ball's current momentum (makes it feel more realistic)
+	Vec2D currentMomentum = mVelocity * 0.3f;  // Keep 30% of current velocity
+
+	// New velocity = player kick + ball momentum
+	mVelocity = (kickDirection * playerSpeed * 2.0f) + currentMomentum;
 
 	// Calculate the new velocity of the ball after bouncing off the player
-	Vec2D newVelocity = playerVelocity * playerSpeed * 2;
+	//Vec2D newVelocity = playerVelocity * playerSpeed * 2;
 
 	// Update the ball's velocity
-	mVelocity = newVelocity;
+	//mVelocity = newVelocity;
+}
+
+void SoccerBall::kick(const Vec2D &direction, float power) {
+	mState = SOCCER_BALL_STATE_IN_PLAY_MOVING;
+	mVelocity = direction.getUnitVec() * power;
+
 }

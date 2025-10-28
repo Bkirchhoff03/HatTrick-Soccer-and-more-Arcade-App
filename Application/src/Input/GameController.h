@@ -9,7 +9,6 @@
 #define INPUT_GAMECONTROLLER_H_
 
 #include "InputAction.h"
-#include "SDL2/SDL_stdinc.h"
 #include <vector>
 
 class GameController {
@@ -28,6 +27,8 @@ public:
 	static InputKey rightKey();
 	static InputKey upKey();
 	static InputKey downKey();
+	static InputKey enterKey();
+	static InputKey shiftKey();
 	static InputKeys leftUpKey();
 	static InputKeys rightUpKey();
 	static InputKeys leftDownKey();

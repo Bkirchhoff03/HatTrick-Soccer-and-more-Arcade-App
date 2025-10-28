@@ -11,7 +11,7 @@
 #include <functional>
 #include <utility>
 #include <stdint.h>
-#include "SDL2/SDL_keycode.h"
+#include "C:\msys64\mingw64\include\SDL2\SDL_keycode.h"
 
 using InputKeys = std::pair<uint8_t,uint8_t>;
 using InputKey = uint8_t;

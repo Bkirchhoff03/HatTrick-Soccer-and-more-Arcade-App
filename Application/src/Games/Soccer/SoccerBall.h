@@ -31,7 +31,7 @@ public:
 	void resetToFirstPosition();
 	void bounce(const BoundaryEdge &edge);
 	void bounceOffOfSoccerPlayer(SoccerPlayer soccerPlayer);
-	
+	void kick(const Vec2D &direction, float power);
 private:
 	AARectangle mBBox;
 	Vec2D mVelocity;

@@ -15,6 +15,7 @@
 #include "SoccerGame.h"
 #include "NotImplementedScene.h"
 #include "PacmanStartScene.h"
+#include "SoccerStartScene.h"
 #include <iostream>
 
 ArcadeScene::ArcadeScene() :
@@ -76,9 +77,7 @@ std::unique_ptr<Scene> ArcadeScene::getScene(eGame game) {
 	}
 		break;
 	case SOCCER: {
-		std::unique_ptr<SoccerGame> soccerGame = std::make_unique<SoccerGame>();
-		std::unique_ptr<GameScene> soccerScene = std::make_unique<GameScene>(std::move(soccerGame));
-		return soccerScene;
+		return std::make_unique<SoccerStartScene>();
 	}
 		break;
 	default: {

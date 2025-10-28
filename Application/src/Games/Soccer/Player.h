@@ -13,7 +13,7 @@
 #include <stdint.h>
 class Screen;
 class SpriteSheet;
-
+class SoccerBall;
 class Player: public SoccerPlayer {
 public:
 	virtual void init(const SpriteSheet &spriteSheet, const std::string &animationsPath, const Vec2D &intialPos,
@@ -33,7 +33,7 @@ public:
 	void resetToFirstAnimation();
 	void ballTakenByDefender();
 	void resetScore();
-
+	void kick(SoccerBall &soccerBall);
 	inline uint32_t score() const {
 		return mScore;
 	}
@@ -42,7 +42,14 @@ public:
 		mState = PLAYER_STOPPED_WITH_BALL;
 	}
 	void addToScore(uint32_t value);
-
+	void setPlayerState(PlayerState state);
+	inline PlayerState getPlayerState() const {
+		return mState;
+	}
+	void setBallPossession(bool hasBall);
+	inline bool hasBall() const {
+		return isWithBall();
+	}
 private:
 	uint32_t mScore;
 	PlayerState mState;

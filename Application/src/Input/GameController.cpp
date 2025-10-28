@@ -60,6 +60,12 @@ InputKey GameController::upKey() {
 InputKey GameController::downKey() {
 	return static_cast<InputKey>(SDLK_DOWN);
 }
+InputKey GameController::enterKey() {
+	return static_cast<InputKey>(SDLK_RETURN);
+}
+InputKey GameController::shiftKey() {
+	return static_cast<InputKey>(SDLK_LSHIFT);
+}
 InputKeys GameController::leftUpKey() {
 	return static_cast<InputKeys>(std::pair<uint8_t, uint8_t>(SDLK_LEFT, SDLK_UP));
 }
