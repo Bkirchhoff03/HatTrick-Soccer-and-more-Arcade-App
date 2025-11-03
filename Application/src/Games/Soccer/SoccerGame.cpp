@@ -22,6 +22,8 @@ namespace {
 
 void SoccerGame::init(GameController& controller) {
 	mTimer = GAME_TIME;
+	mIsSprintHeld = false;
+
 	mPlayerSpriteSheet.load("SoccerSprites");
 	mPlayer.init(mPlayerSpriteSheet, App::singleton().getBasePath() + "Assets\\Soccer_animations.txt", Vec2D::zero,
 		PLAYER_MOVEMENT_SPEED, false);
@@ -98,12 +100,14 @@ void SoccerGame::init(GameController& controller) {
 	backAction.action = [this](uint32_t dt, InputState state) {
 		if (mGameState == GAME_OVER && GameController::isPressed(state)) {
 			App::singleton().popScene();
+		} else if (mGameState == IN_GAME && GameController::isPressed(state)) {
+			//PAUSE THE GAME LOGIC HERE
 		}
 		};
 	controller.addInputActionForKey(backAction);
 
 	ButtonAction kickAction;
-	kickAction.key = GameController::enterKey();
+	kickAction.key = GameController::spaceKey();
 	kickAction.action = [this](uint32_t dt, InputState state) {
 		if (mGameState == IN_GAME && GameController::isPressed(state)) {
 			mPlayer.kick(mSoccerBall);
@@ -112,10 +116,11 @@ void SoccerGame::init(GameController& controller) {
 	controller.addInputActionForKey(kickAction);
 
 	ButtonAction sprintAction;
-	sprintAction.key = GameController::shiftKey();  // Or use Shift if available
+	sprintAction.key = GameController::shiftKey();
 	sprintAction.action = [this](uint32_t dt, InputState state) {
 		if (mGameState == IN_GAME) {
 			if (GameController::isPressed(state)) {
+				mIsSprintHeld = true;
 				// Player is sprinting
 				if (mPlayer.isWithBall()) {
 					mPlayer.setPlayerState(PLAYER_SPRINTING_WITH_BALL);
@@ -124,6 +129,7 @@ void SoccerGame::init(GameController& controller) {
 				}
 			} else if (GameController::isReleased(state)) {
 				// Released sprint - go back to running
+				mIsSprintHeld = false;
 				if (mPlayer.getMovementDirection() != PLAYER_MOVEMENT_NONE) {
 					if (mPlayer.isWithBall()) {
 						mPlayer.setPlayerState(PLAYER_RUNNING_WITH_BALL);
@@ -146,7 +152,7 @@ void SoccerGame::init(GameController& controller) {
 			mPlayer.resetScore();
 			resetGame();
 		}
-		};
+	};
 	controller.addInputActionForKey(startAction);
 
 }
@@ -159,15 +165,26 @@ void SoccerGame::update(uint32_t dt) {
 		}
 	}
 	else if (mGameState == GAME_OVER) {
-		mAnnouncement = "A to restart. S to quit";
+		mAnnouncement = "Enter to restart. ESC to quit";
 	}
 	else if (mGameState == GAME_STOPPED) {
 
 	}
 	else if (mGameState == IN_GAME) {
+		if (mPlayer.getBoundingBox().intersects(mSoccerBall.getBoundingBox())) {
+			mSoccerBall.bounceOffOfSoccerPlayer(mPlayer);
+			mPlayer.setBallPossession(true);
+		}
+
 		updatePlayerMovement();
 		mPlayer.update(dt);
 		mSoccerBall.update(dt);
+
+		if (mPlayer.getBoundingBox().intersects(mSoccerBall.getBoundingBox())) {
+			mSoccerBall.bounceOffOfSoccerPlayer(mPlayer);
+			mPlayer.setBallPossession(true);
+		}
+
 		if (mTimer > 0) {
 			mTimer -= dt;
 		}
@@ -186,10 +203,7 @@ void SoccerGame::update(uint32_t dt) {
 			auto direction = defenderAI.update(dt, mPlayer, TeamAgainst::singleton(), mDefenders, mSoccerBall);
 			defender.setMovementDirection(direction);
 			defender.update(dt);
-			if (mPlayer.getBoundingBox().intersects(mSoccerBall.getBoundingBox())) {
-				mSoccerBall.bounceOffOfSoccerPlayer(mPlayer);
-				mPlayer.setBallPossession(true);
-			}
+
 			if (defender.getBoundingBox().intersects(mSoccerBall.getBoundingBox())) {
 				if (i == GOALKEEPER) {
 					mAnnouncement = GK_SAVE_STR;
@@ -200,6 +214,7 @@ void SoccerGame::update(uint32_t dt) {
 				mSoccerBall.bounceOffOfSoccerPlayer(defender);
 				mPlayer.setBallPossession(false);
 			}
+			
 			if (mPlayer.getBoundingBox().intersects(defender.zoneBoundingBox())) {
 				defender.setStateToDefending();
 				defender.checkIntersection(mPlayer);
@@ -325,6 +340,14 @@ void SoccerGame::updatePlayerMovement() {
 	if (mPressedDirection != PLAYER_MOVEMENT_NONE) {	// && currentDirection != mPressedDirection) {
 		if (!TeamAgainst::singleton().willCollide(mPlayer.getBoundingBox(), mPressedDirection)) {
 			mPlayer.setMovementDirection(mPressedDirection);
+
+			if (mIsSprintHeld) {
+				if (mPlayer.isWithBall()) {
+					mPlayer.setPlayerState(PLAYER_SPRINTING_WITH_BALL);
+				} else {
+					mPlayer.setPlayerState(PLAYER_SPRINTING);
+				}
+			}
 		}
 	}
 	if (mPressedDirection == PLAYER_MOVEMENT_NONE) {
@@ -335,10 +358,29 @@ void SoccerGame::handleGameControllerState(uint32_t dt, InputState state, Player
 	if (GameController::isPressed(state)) {
 		mPressedDirection = direction;
 	}
-	else if (GameController::isReleased(state) && mPressedDirection == direction) {
-		mPressedDirection = PLAYER_MOVEMENT_NONE;
+	else if (GameController::isReleased(state)) { // && mPressedDirection == direction) {
+		if (mPressedDirection == direction || isDirectionComponentOf(direction, mPressedDirection)) {
+			mPressedDirection = PLAYER_MOVEMENT_NONE;
+		}
 	}
 }
+
+bool SoccerGame::isDirectionComponentOf(PlayerMovement component, PlayerMovement diagonal) {
+	// Check if the component direction is part of the diagonal direction
+	switch (diagonal) {
+	case PLAYER_MOVEMENT_LEFT_UP:
+		return component == PLAYER_MOVEMENT_LEFT || component == PLAYER_MOVEMENT_UP;
+	case PLAYER_MOVEMENT_LEFT_DOWN:
+		return component == PLAYER_MOVEMENT_LEFT || component == PLAYER_MOVEMENT_DOWN;
+	case PLAYER_MOVEMENT_RIGHT_UP:
+		return component == PLAYER_MOVEMENT_RIGHT || component == PLAYER_MOVEMENT_UP;
+	case PLAYER_MOVEMENT_RIGHT_DOWN:
+		return component == PLAYER_MOVEMENT_RIGHT || component == PLAYER_MOVEMENT_DOWN;
+	default:
+		return false;
+	}
+}
+
 void SoccerGame::resetGame() {
 	//mGameState = GAME_STARTING;
 	mPlayer.moveTo(TeamAgainst::singleton().getPlayerSpawnLocation());

@@ -27,7 +27,7 @@ public:
 	static InputKey rightKey();
 	static InputKey upKey();
 	static InputKey downKey();
-	static InputKey enterKey();
+	static InputKey spaceKey();
 	static InputKey shiftKey();
 	static InputKeys leftUpKey();
 	static InputKeys rightUpKey();

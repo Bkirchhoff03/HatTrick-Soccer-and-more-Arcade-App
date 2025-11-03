@@ -43,40 +43,40 @@ bool GameController::isReleased(InputState state) {
 	return state == SDL_RELEASED;
 }
 InputKey GameController::actionKey() {
-	return static_cast<InputKey>(SDLK_a);
+	return static_cast<InputKey>(SDLK_RETURN);
 }
 InputKey GameController::cancelKey() {
-	return static_cast<InputKey>(SDLK_s);
+	return static_cast<InputKey>(SDLK_ESCAPE);
 }
 InputKey GameController::leftKey() {
-	return static_cast<InputKey>(SDLK_LEFT);
+	return static_cast<InputKey>(SDLK_a);
 }
 InputKey GameController::rightKey() {
-	return static_cast<InputKey>(SDLK_RIGHT);
+	return static_cast<InputKey>(SDLK_d);
 }
 InputKey GameController::upKey() {
-	return static_cast<InputKey>(SDLK_UP);
+	return static_cast<InputKey>(SDLK_w);
 }
 InputKey GameController::downKey() {
-	return static_cast<InputKey>(SDLK_DOWN);
+	return static_cast<InputKey>(SDLK_s);
 }
-InputKey GameController::enterKey() {
-	return static_cast<InputKey>(SDLK_RETURN);
+InputKey GameController::spaceKey() {
+	return static_cast<InputKey>(SDLK_SPACE);
 }
 InputKey GameController::shiftKey() {
 	return static_cast<InputKey>(SDLK_LSHIFT);
 }
 InputKeys GameController::leftUpKey() {
-	return static_cast<InputKeys>(std::pair<uint8_t, uint8_t>(SDLK_LEFT, SDLK_UP));
+	return static_cast<InputKeys>(std::pair<uint8_t, uint8_t>(SDL_SCANCODE_A, SDL_SCANCODE_W));
 }
 InputKeys GameController::rightUpKey() {
-	return static_cast<InputKeys>(std::pair<uint8_t, uint8_t>(SDLK_RIGHT, SDLK_UP));
+	return static_cast<InputKeys>(std::pair<uint8_t, uint8_t>(SDL_SCANCODE_D, SDL_SCANCODE_W));
 }
 InputKeys GameController::leftDownKey() {
-	return static_cast<InputKeys>(std::pair<uint8_t, uint8_t>(SDLK_LEFT, SDLK_DOWN));
+	return static_cast<InputKeys>(std::pair<uint8_t, uint8_t>(SDL_SCANCODE_A, SDL_SCANCODE_S));
 }
 InputKeys GameController::rightDownKey() {
-	return static_cast<InputKeys>(std::pair<uint8_t, uint8_t>(SDLK_RIGHT, SDLK_DOWN));
+	return static_cast<InputKeys>(std::pair<uint8_t, uint8_t>(SDL_SCANCODE_D, SDL_SCANCODE_S));
 }
 MouseInputAction GameController::getMouseButtonActionForMouseButton(MouseButton button) {
 	for (MouseButtonAction buttonAction : mMouseButtonActions) {

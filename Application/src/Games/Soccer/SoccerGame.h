@@ -34,13 +34,16 @@ public:
 private:
 	void resetGameAfterScore();
 	void updatePlayerMovement();
+	bool isDirectionComponentOf(PlayerMovement component, PlayerMovement diagonal);
 	void handleGameControllerState(uint32_t dt, InputState state, PlayerMovement direction);
 	void resetGame();
 	void drawScore(Screen &screen);
 	void setupDefenders();
 
+
 	SoccerBall mSoccerBall;
 	PlayerMovement mPressedDirection;
+	bool mIsSprintHeld;
 	SpriteSheet mPlayerSpriteSheet;
 	Player mPlayer;
 	//TeamAgainst mTeamAgainst;
